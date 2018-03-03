@@ -71,13 +71,17 @@ impl<'a> UsbController<'a> {
 
 
     fn set_color(&mut self, r: u8, g: u8, b: u8) {
+        let mode = 4; // 3
+
         self.write_init_commands();
-        self.write_color_command(0, 2, 3, 0, 255, 255, 255, 0, 255);
-        self.write_color_command(2, 2, 3, 0, 255, 255, 255, 0, 255);
-        self.write_color_command(4, 2, 3, 0, 255, 255, 255, 0, 255);
-        self.write_color_command(6, 2, 3, 0, 255, 255, 255, 0, 255);
-        self.write_color_command(8, 2, 3, 0, 255, 255, 255, 0, 255);
-        self.write_color_command(10, 2, 3, 0, 255, 255, 255, 0, 255);
+        self.write_color_command(0, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(2, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(4, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(6, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(8, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(10, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(12, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(14, 2, mode, 0, 127, 255, 255, 127, 0);
         self.write_final_command();
     }
 
