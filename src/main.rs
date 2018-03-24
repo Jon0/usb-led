@@ -1,6 +1,7 @@
 extern crate rand;
 extern crate libusb;
 
+use std::env;
 use std::str;
 use std::io::Read;
 use std::io::Seek;
@@ -70,29 +71,40 @@ impl<'a> UsbController<'a> {
     }
 
 
-    fn set_color(&mut self, r: u8, g: u8, b: u8) {
-        let mode = 4; // 3
-
+    fn set_color(&mut self, mode: u8, r: u8, g: u8, b: u8) {
         self.write_init_commands();
-        self.write_color_command(0, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(2, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(4, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(6, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(8, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(10, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(12, 2, mode, 0, 127, 255, 255, 127, 0);
-        self.write_color_command(14, 2, mode, 0, 127, 255, 255, 127, 0);
+        self.write_unknown_commands(0, 0);
+        self.write_color_command(0, 2, mode, 0, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(2, 2, mode, 10, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(4, 2, mode, 20, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(6, 2, mode, 30, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(8, 2, mode, 40, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(10, 2, mode, 50, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(12, 2, mode, 60, 0, 127, 255, 255, 127, 0);
+        self.write_color_command(14, 2, mode, 70, 0, 127, 255, 255, 127, 0);
         self.write_final_command();
     }
 
     fn write_init_commands(&mut self) {
         let msgs: [[u8; 3]; 1] = [
-                //[0x37, 0x01, 0x00],
-                //[0x34, 0x01, 0x00],
-                //[0x38, 0x01, 0x01],
+                // [0x37, 0x01, 0x00],
+                // [0x34, 0x01, 0x00],
+                // [0x38, 0x01, 0x01],
                 [0x37, 0x00, 0x00],
                 //[0x34, 0x00, 0x00],
                 //[0x38, 0x00, 0x01],
+            ];
+
+        for buf in msgs.iter() {
+            self.send_msg(buf);
+        }
+    }
+
+
+    fn write_unknown_commands(&mut self, a: u8, b: u8) {
+        let msgs: [[u8; 3]; 2] = [
+                [0x34, a, 0x00],
+                [0x38, b, 0x01],
             ];
 
         for buf in msgs.iter() {
@@ -104,12 +116,13 @@ impl<'a> UsbController<'a> {
      * offset: led index
      * modes: 0x01 = fade, 0x04 = static, 0x06 = sequence, 0x08 = blink
      */
-    fn write_color_command(&mut self, offset: u8, count: u8, mode: u8, r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) {
+    fn write_color_command(&mut self, offset: u8, count: u8, mode: u8, unknown: u8, r1: u8, g1: u8, b1: u8, r2: u8, g2: u8, b2: u8) {
         let speed = 0x02; // 0x00 fastest, 0x01 medium, 0x02 slowest
         let sequence = 0x01; // 0x00 or 0x01 for random
+        let random = 0x01; // 0x00 off, 0x01 on
 
         let buf: [u8; 24] = [
-                0x35, 0x00, offset, count, mode, speed, sequence, 0x00,
+                0x35, 0x00, offset, count, mode, speed, unknown, random,
                 0xff, r1, g1, b1, r2, g2, b2, 0xff,
                 0x00, 0x00, 0x09, 0xc4, 0x0d, 0xac, 0x11, 0x94
             ];
@@ -172,21 +185,35 @@ fn print_device(device: &libusb::Device) {
 }
 
 
-fn select_device(device: libusb::Device) {
+/**
+ * Set selected device to some mode.
+ */
+fn select_device(device: libusb::Device, mode: u8) {
 
     // print all device information
     print_device(&device);
 
     let mut controller = UsbController::open(&device);
     controller.claim();
-
-    controller.set_color(255, 0, 0);
-
+    controller.set_color(mode, 255, 0, 0);
     controller.release();
 }
 
 
 fn main() {
+    let mut mode = 4;
+
+    let args: Vec<String> = env::args().collect();
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--mode" || args[i] == "-m" {
+            i += 1;
+            mode = args[i].parse::<u8>().unwrap();
+        }
+        i += 1;
+    }
+
+
     // usb id
     let vendor_id = 0x1b1c;
     let product_id = 0x0c0b;
@@ -196,7 +223,7 @@ fn main() {
     for mut device in context.devices().unwrap().iter() {
         let device_desc = device.device_descriptor().unwrap();
         if device_desc.vendor_id() == vendor_id && device_desc.product_id() == product_id {
-            select_device(device);
+            select_device(device, mode);
         }
     }
 }
